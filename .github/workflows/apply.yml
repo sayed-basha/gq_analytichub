@@ -62,9 +62,9 @@ jobs:
       - run: |
           terraform apply -auto-approve \
             -var="project_id=${{ vars.GCP_PROJECT_ID }}" \
-            -var="dataset_id=YOUR_DATASET" \
-            -var="source_table=YOUR_TABLE" \
-            -var="privacy_unit_col=customer_id" \
+            -var="dataset_id=my_patient_dataset" \
+            -var="source_table=patien_table" \
+            -var="privacy_unit_col=patient_id" \
             -var="aggregation_threshold=${{ github.event.inputs.aggregation_threshold || 50 }}" \
             -var='publishers=${{ steps.iam.outputs.publishers }}' \
             -var='subscribers=${{ steps.iam.outputs.subscribers }}'
