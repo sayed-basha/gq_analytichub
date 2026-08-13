@@ -7,7 +7,7 @@ variable "privacy_unit_col"  { type = string }            # e.g. "customer_id"
 # This is the user-facing knob: the threshold value
 variable "aggregation_threshold" {
   type        = number
-  default     = 50
+  default     = 100
   description = "Minimum distinct privacy-unit count required per output row before results are returned to a subscriber."
 }
 
