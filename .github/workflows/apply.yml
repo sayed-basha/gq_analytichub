@@ -1,0 +1,70 @@
+name: terraform-apply
+on:
+  push:
+    branches: [main]
+    paths: ["terraform/**"]
+  workflow_dispatch:                      # <-- gives users a "Run workflow" button
+    inputs:
+      aggregation_threshold:
+        description: "Minimum distinct entity count required to release a result row"
+        required: true
+        default: "50"
+        type: string
+      subscriber_principal:
+        description: 'Add a subscriber, e.g. "user:alice@partner.com" or "group:partner-analysts@partner.com" (leave blank to change nothing)'
+        required: false
+        default: ""
+        type: string
+      publisher_principal:
+        description: 'Add a publisher, e.g. "group:data-eng@company.com" (leave blank to change nothing)'
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    # environment: production   # <-- uncomment to require manual approval + use environment-scoped
+                                 #     variables instead of repo variables (see note in step 1.4)
+    defaults:
+      run: { working-directory: terraform }
+    steps:
+      - uses: actions/checkout@v4
+      - id: auth
+        uses: google-github-actions/auth@v3
+        with:
+          project_id: ${{ vars.GCP_PROJECT_ID }}
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_SA_EMAIL }}
+      - uses: google-github-actions/setup-gcloud@v3
+      - uses: hashicorp/setup-terraform@v3
+      - run: terraform init
+      - name: Build publisher/subscriber lists
+        id: iam
+        run: |
+          # Source of truth lives in terraform/access.auto.tfvars.json (edited via normal PRs).
+          # A workflow_dispatch run can also "quick add" one extra principal for this run only.
+          base_pub=$(jq -r '.publishers // [] | @json' terraform/access.auto.tfvars.json 2>/dev/null || echo '[]')
+          base_sub=$(jq -r '.subscribers // [] | @json' terraform/access.auto.tfvars.json 2>/dev/null || echo '[]')
+
+          pub="${{ github.event.inputs.publisher_principal }}"
+          sub="${{ github.event.inputs.subscriber_principal }}"
+
+          final_pub=$(echo "$base_pub" | jq -c --arg p "$pub" 'if $p != "" then . + [$p] else . end')
+          final_sub=$(echo "$base_sub" | jq -c --arg s "$sub" 'if $s != "" then . + [$s] else . end')
+
+          echo "publishers=$final_pub" >> "$GITHUB_OUTPUT"
+          echo "subscribers=$final_sub" >> "$GITHUB_OUTPUT"
+      - run: |
+          terraform apply -auto-approve \
+            -var="project_id=${{ vars.GCP_PROJECT_ID }}" \
+            -var="dataset_id=YOUR_DATASET" \
+            -var="source_table=YOUR_TABLE" \
+            -var="privacy_unit_col=customer_id" \
+            -var="aggregation_threshold=${{ github.event.inputs.aggregation_threshold || 50 }}" \
+            -var='publishers=${{ steps.iam.outputs.publishers }}' \
+            -var='subscribers=${{ steps.iam.outputs.subscribers }}'
