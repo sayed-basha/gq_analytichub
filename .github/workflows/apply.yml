@@ -2,7 +2,7 @@ name: terraform-apply
 on:
   push:
     branches: [main]
-    paths: ["terraform/**"]
+    paths: ["terraform/**", ".github/workflows/**"]
   workflow_dispatch:                      # <-- gives users a "Run workflow" button
     inputs:
       aggregation_threshold:
