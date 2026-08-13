@@ -1,5 +1,5 @@
 variable "project_id"        { type = string }
-variable "location"          { type = string, default = "US" }
+variable "location"          { type = string, default = "asia-southeast1" }
 variable "dataset_id"        { type = string }            # your existing BQ dataset
 variable "source_table"      { type = string }            # table inside that dataset to share
 variable "privacy_unit_col"  { type = string }            # e.g. "customer_id"
