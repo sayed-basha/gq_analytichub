@@ -5,21 +5,19 @@ resource "google_bigquery_dataset" "cleanroom_shared" {
 }
 
 resource "null_resource" "cleanroom_view" {
-  # bq CLI is used here because Terraform's bigquery_table resource cannot
-  # yet set the privacy_policy OPTION directly on view creation in all provider versions.
   provisioner "local-exec" {
     command = <<-EOT
       bq query --project_id=${var.project_id} --use_legacy_sql=false \
-      'CREATE OR REPLACE VIEW `${var.project_id}.${google_bigquery_dataset.cleanroom_shared.dataset_id}.shared_view` \
-       OPTIONS ( \
-         privacy_policy = JSON """{ \
-           "aggregation_threshold_policy": { \
-             "threshold": ${var.aggregation_threshold}, \
-             "privacy_unit_column": "${var.privacy_unit_col}" \
-           } \
-         }""" \
+      'CREATE OR REPLACE VIEW `${var.project_id}.${google_bigquery_dataset.cleanroom_shared.dataset_id}.shared_view`
+       OPTIONS (
+         privacy_policy = JSON """{
+           "aggregation_threshold_policy": {
+             "threshold": ${var.aggregation_threshold},
+             "privacy_unit_column": "${var.privacy_unit_col}"
+           }
+         }"""
        ) AS SELECT * FROM `${var.project_id}.${var.dataset_id}.${var.source_table}`'
     EOT
   }
-  triggers = { threshold = var.aggregation_threshold }  # re-runs whenever threshold changes
+  triggers = { threshold = var.aggregation_threshold }
 }
