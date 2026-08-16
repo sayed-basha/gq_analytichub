@@ -11,5 +11,10 @@ resource "google_bigquery_analytics_hub_listing" "cleanroom_listing" {
     }
   }
 
+  restricted_export_config {
+    enabled               = true
+    restrict_query_result = true
+  }
+
   depends_on = [null_resource.cleanroom_view]
 }
