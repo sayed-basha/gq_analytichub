@@ -7,9 +7,9 @@ resource "google_bigquery_analytics_hub_listing" "cleanroom_listing" {
   display_name     = "Shared Data - ${each.key}"
 
   bigquery_dataset {
-    dataset = "projects/${each.value.project_id}/datasets/${google_bigquery_dataset.cleanroom_shared[each.key].dataset_id}"
+    dataset = "projects/${each.value.project_id}/datasets/${each.value.dataset_id}"
     selected_resources {
-      table = "projects/${each.value.project_id}/datasets/${google_bigquery_dataset.cleanroom_shared[each.key].dataset_id}/tables/shared_view"
+      table = "projects/${each.value.project_id}/datasets/${each.value.dataset_id}/tables/cleanroom_view_${each.key}"
     }
   }
 
