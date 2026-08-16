@@ -6,6 +6,9 @@ resource "google_bigquery_analytics_hub_listing" "cleanroom_listing" {
 
   bigquery_dataset {
     dataset = "projects/${var.project_id}/datasets/${google_bigquery_dataset.cleanroom_shared.dataset_id}"
+    selected_resources {
+      table = "projects/${var.project_id}/datasets/${google_bigquery_dataset.cleanroom_shared.dataset_id}/tables/shared_view"
+    }
   }
 
   depends_on = [null_resource.cleanroom_view]
