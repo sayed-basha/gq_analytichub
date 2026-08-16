@@ -28,8 +28,6 @@ permissions:
 jobs:
   apply:
     runs-on: ubuntu-latest
-    # environment: production   # <-- uncomment to require manual approval + use environment-scoped
-                                 #     variables instead of repo variables (see note in step 1.4)
     defaults:
       run: { working-directory: terraform }
     steps:
