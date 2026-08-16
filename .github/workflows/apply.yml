@@ -10,6 +10,21 @@ on:
         required: true
         default: "50"
         type: string
+      dataset_id:
+        description: 'BigQuery dataset to share (leave blank to use the default: DEFAULT_DATASET_ID repo variable)'
+        required: false
+        default: ""
+        type: string
+      source_table:
+        description: 'Table within that dataset to share (leave blank to use DEFAULT_SOURCE_TABLE)'
+        required: false
+        default: ""
+        type: string
+      privacy_unit_col:
+        description: 'Column identifying one entity, e.g. patient_id / customer_id (leave blank to use DEFAULT_PRIVACY_UNIT_COL)'
+        required: false
+        default: ""
+        type: string
       subscriber_principal:
         description: 'Add a subscriber, e.g. "user:alice@partner.com" or "group:partner-analysts@partner.com" (leave blank to change nothing)'
         required: false
@@ -60,9 +75,9 @@ jobs:
       - run: |
           terraform apply -auto-approve \
             -var="project_id=${{ vars.GCP_PROJECT_ID }}" \
-            -var="dataset_id=my_patient_dataset" \
-            -var="source_table=patien_table" \
-            -var="privacy_unit_col=patient_id" \
+            -var="dataset_id=${{ github.event.inputs.dataset_id || vars.DEFAULT_DATASET_ID }}" \
+            -var="source_table=${{ github.event.inputs.source_table || vars.DEFAULT_SOURCE_TABLE }}" \
+            -var="privacy_unit_col=${{ github.event.inputs.privacy_unit_col || vars.DEFAULT_PRIVACY_UNIT_COL }}" \
             -var="aggregation_threshold=${{ github.event.inputs.aggregation_threshold || 50 }}" \
             -var='publishers=${{ steps.iam.outputs.publishers }}' \
             -var='subscribers=${{ steps.iam.outputs.subscribers }}'

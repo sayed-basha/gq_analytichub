@@ -26,8 +26,8 @@ jobs:
       - run: |
           terraform plan \
             -var="project_id=${{ vars.GCP_PROJECT_ID }}" \
-            -var="dataset_id=my_patient_dataset" \
-            -var="source_table=patien_table" \
-            -var="privacy_unit_col=patient_id" \
+            -var="dataset_id=${{ vars.DEFAULT_DATASET_ID }}" \
+            -var="source_table=${{ vars.DEFAULT_SOURCE_TABLE }}" \
+            -var="privacy_unit_col=${{ vars.DEFAULT_PRIVACY_UNIT_COL }}" \
             -var='publishers=["group:data-eng@company.com"]' \
             -var='subscribers=["group:partner-analysts@partner.com"]'
