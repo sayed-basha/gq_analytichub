@@ -10,7 +10,7 @@ resource "null_resource" "cleanroom_view" {
       bq query --project_id=${var.project_id} --use_legacy_sql=false \
       'CREATE OR REPLACE VIEW `${var.project_id}.${google_bigquery_dataset.cleanroom_shared.dataset_id}.shared_view`
        OPTIONS (
-         privacy_policy = JSON """{
+         privacy_policy = """{
            "aggregation_threshold_policy": {
              "threshold": ${var.aggregation_threshold},
              "privacy_unit_column": "${var.privacy_unit_col}"
