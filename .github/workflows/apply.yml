@@ -46,8 +46,8 @@ jobs:
         run: |
           # Source of truth lives in terraform/access.auto.tfvars.json (edited via normal PRs).
           # A workflow_dispatch run can also "quick add" one extra principal for this run only.
-          base_pub=$(jq -r '.publishers // [] | @json' terraform/access.auto.tfvars.json 2>/dev/null || echo '[]')
-          base_sub=$(jq -r '.subscribers // [] | @json' terraform/access.auto.tfvars.json 2>/dev/null || echo '[]')
+          base_pub=$(jq -r '.publishers // [] | @json' access.auto.tfvars.json 2>/dev/null || echo '[]')
+          base_sub=$(jq -r '.subscribers // [] | @json' access.auto.tfvars.json 2>/dev/null || echo '[]')
 
           pub="${{ github.event.inputs.publisher_principal }}"
           sub="${{ github.event.inputs.subscriber_principal }}"
