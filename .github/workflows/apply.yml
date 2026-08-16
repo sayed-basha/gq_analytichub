@@ -3,39 +3,41 @@ on:
   push:
     branches: [main]
     paths: ["terraform/**", ".github/workflows/**"]
-  workflow_dispatch:                      # <-- gives users a "Run workflow" button
+  workflow_dispatch:
     inputs:
-      aggregation_threshold:
-        description: "Minimum distinct entity count required to release a result row"
+      clean_room_name:
+        description: 'Unique name for this clean room, e.g. "hospital_data" (required — identifies which room to create/update)'
         required: true
-        default: "50"
+        type: string
+      project_id:
+        description: 'GCP project this clean room lives in (leave blank to use this repo''s default project)'
+        required: false
+        default: ""
         type: string
       dataset_id:
-        description: 'BigQuery dataset to share (leave blank to use the default: DEFAULT_DATASET_ID repo variable)'
         required: false
         default: ""
         type: string
       source_table:
-        description: 'Table within that dataset to share (leave blank to use DEFAULT_SOURCE_TABLE)'
         required: false
         default: ""
         type: string
       privacy_unit_col:
-        description: 'Column identifying one entity, e.g. patient_id / customer_id (leave blank to use DEFAULT_PRIVACY_UNIT_COL)'
+        required: false
+        default: ""
+        type: string
+      aggregation_threshold:
+        required: false
+        default: "50"
+        type: string
+      publisher_principal:
         required: false
         default: ""
         type: string
       subscriber_principal:
-        description: 'Add a subscriber, e.g. "user:alice@partner.com" or "group:partner-analysts@partner.com" (leave blank to change nothing)'
         required: false
         default: ""
         type: string
-      publisher_principal:
-        description: 'Add a publisher, e.g. "group:data-eng@company.com" (leave blank to change nothing)'
-        required: false
-        default: ""
-        type: string
-
 permissions:
   contents: read
   id-token: write
@@ -56,28 +58,54 @@ jobs:
       - uses: google-github-actions/setup-gcloud@v3
       - uses: hashicorp/setup-terraform@v3
       - run: terraform init
-      - name: Build publisher/subscriber lists
-        id: iam
+      - name: Build clean_rooms map
+        id: rooms
         run: |
-          # Source of truth lives in terraform/access.auto.tfvars.json (edited via normal PRs).
-          # A workflow_dispatch run can also "quick add" one extra principal for this run only.
-          base_pub=$(jq -r '.publishers // [] | @json' access.auto.tfvars.json 2>/dev/null || echo '[]')
-          base_sub=$(jq -r '.subscribers // [] | @json' access.auto.tfvars.json 2>/dev/null || echo '[]')
+          name="${{ github.event.inputs.clean_room_name }}"
+          if [ -z "$name" ]; then
+            # No name given (e.g. a plain push to main) → just apply whatever's already checked into clean_rooms.auto.tfvars.json
+            echo "clean_rooms={}" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
 
-          pub="${{ github.event.inputs.publisher_principal }}"
-          sub="${{ github.event.inputs.subscriber_principal }}"
+          proj="${{ github.event.inputs.project_id }}"
+          [ -z "$proj" ] && proj="${{ vars.GCP_PROJECT_ID }}"
 
-          final_pub=$(echo "$base_pub" | jq -c --arg p "$pub" 'if $p != "" then . + [$p] else . end')
-          final_sub=$(echo "$base_sub" | jq -c --arg s "$sub" 'if $s != "" then . + [$s] else . end')
+          new_entry=$(jq -n \
+            --arg project_id "$proj" \
+            --arg location "${{ vars.DEFAULT_LOCATION }}" \
+            --arg dataset_id "${{ github.event.inputs.dataset_id }}" \
+            --arg source_table "${{ github.event.inputs.source_table }}" \
+            --arg privacy_unit_col "${{ github.event.inputs.privacy_unit_col }}" \
+            --argjson threshold ${{ github.event.inputs.aggregation_threshold || 50 }} \
+            --arg pub "${{ github.event.inputs.publisher_principal }}" \
+            --arg sub "${{ github.event.inputs.subscriber_principal }}" \
+            '{
+              project_id: $project_id, location: $location, dataset_id: $dataset_id,
+              source_table: $source_table, privacy_unit_col: $privacy_unit_col,
+              aggregation_threshold: $threshold,
+              publishers: (if $pub != "" then [$pub] else [] end),
+              subscribers: (if $sub != "" then [$sub] else [] end)
+            }')
 
-          echo "publishers=$final_pub" >> "$GITHUB_OUTPUT"
-          echo "subscribers=$final_sub" >> "$GITHUB_OUTPUT"
+          # Merge into the checked-in file: if the room already exists, merge new
+          # publishers/subscribers into its lists instead of replacing them.
+          merged=$(jq --arg name "$name" --argjson entry "$new_entry" '
+            .clean_rooms[$name] as $existing |
+            .clean_rooms[$name] = (
+              if $existing == null then $entry
+              else $existing
+                | .publishers += $entry.publishers | .publishers |= unique
+                | .subscribers += $entry.subscribers | .subscribers |= unique
+                | (if $entry.dataset_id != "" then .dataset_id = $entry.dataset_id else . end)
+                | (if $entry.source_table != "" then .source_table = $entry.source_table else . end)
+                | (if $entry.privacy_unit_col != "" then .privacy_unit_col = $entry.privacy_unit_col else . end)
+                | .aggregation_threshold = $entry.aggregation_threshold
+              end
+            ) | .clean_rooms' clean_rooms.auto.tfvars.json)
+
+          echo "clean_rooms=$(echo "$merged" | jq -c .)" >> "$GITHUB_OUTPUT"
+
       - run: |
           terraform apply -auto-approve \
-            -var="project_id=${{ vars.GCP_PROJECT_ID }}" \
-            -var="dataset_id=${{ github.event.inputs.dataset_id || vars.DEFAULT_DATASET_ID }}" \
-            -var="source_table=${{ github.event.inputs.source_table || vars.DEFAULT_SOURCE_TABLE }}" \
-            -var="privacy_unit_col=${{ github.event.inputs.privacy_unit_col || vars.DEFAULT_PRIVACY_UNIT_COL }}" \
-            -var="aggregation_threshold=${{ github.event.inputs.aggregation_threshold || 50 }}" \
-            -var='publishers=${{ steps.iam.outputs.publishers }}' \
-            -var='subscribers=${{ steps.iam.outputs.subscribers }}'
+            -var='clean_rooms=${{ steps.rooms.outputs.clean_rooms }}'
