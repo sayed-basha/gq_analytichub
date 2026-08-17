@@ -6,11 +6,11 @@ on:
   workflow_dispatch:
     inputs:
       clean_room_name:
-        description: 'Unique name for this clean room, e.g. "hospital_data" (required — identifies which room to create/update)'
+        description: 'Clean_room_name'
         required: true
         type: string
       project_id:
-        description: 'GCP project this clean room lives in (leave blank to use this repo''s default project)'
+        description: 'GCP_project_id'
         required: false
         default: ""
         type: string
