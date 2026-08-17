@@ -15,8 +15,9 @@ resource "null_resource" "cleanroom_view" {
     EOT
   }
   triggers = {
-    threshold = each.value.aggregation_threshold
-    dataset   = each.value.dataset_id
-    table     = each.value.source_table
+    threshold  = each.value.aggregation_threshold
+    dataset    = each.value.dataset_id
+    table      = each.value.source_table
+    query_hash = sha1("${each.value.project_id}${each.value.dataset_id}${each.key}${each.value.source_table}${each.value.privacy_unit_col}${each.value.aggregation_threshold}")
   }
 }
